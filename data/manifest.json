@@ -1,0 +1,28 @@
+{
+  "feature_file": "data/features/launch_features_20251030_070453.parquet",
+  "rows": 186,
+  "columns": [
+    "flight_number",
+    "year",
+    "payload_mass_kg",
+    "orbit",
+    "launch_site",
+    "booster_version",
+    "reuse_count",
+    "is_weekend",
+    "success"
+  ],
+  "dtypes": {
+    "flight_number": "Int64",
+    "year": "Int64",
+    "payload_mass_kg": "float64",
+    "orbit": "object",
+    "launch_site": "object",
+    "booster_version": "object",
+    "reuse_count": "Int64",
+    "is_weekend": "Int64",
+    "success": "Int64"
+  },
+  "sha256_feature": "66961cf844de57153685bab5e1206e4eb534ce404f5d5366753360ad3138ec82",
+  "sha256_raw": null
+}

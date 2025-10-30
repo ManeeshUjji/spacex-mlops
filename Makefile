@@ -3,8 +3,10 @@
 fetch:
 	@echo "TODO: python src/fetch_raw.py"
 
-validate:
-	@echo "TODO: python src/validate_raw.py"
+validate: fetch
+	python src/validate_raw.py
+
+
 
 process:
 	@echo "TODO: python src/clean_transform.py"

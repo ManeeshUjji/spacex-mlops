@@ -1,5 +1,6 @@
 {
   "champion_version": "v20251030-0333",
+  "path": "registry/models/v20251030-0333",
   "previous_version": null,
   "promoted_at": "2025-10-30 07:52:36Z",
   "reason": "bootstrap (first model)",

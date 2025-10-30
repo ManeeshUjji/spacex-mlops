@@ -168,6 +168,7 @@ def train_and_eval(ver: str):
             best_auc, best_key, best_model = auc, key, model
 
     # Write metrics.json
+    # After the loop that picks best_model
     summary = {
         "version": ver,
         "random_seed": seed,
@@ -181,17 +182,26 @@ def train_and_eval(ver: str):
     }
     (run_dir / "metrics.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
-    # Save model package (model + encoders + imputers + schema bits)
+    # Correct model package
     package = {
-        "model": best_model,
-        "encoders": encoders,                  # per-categorical column LabelEncoder classes
-        "numeric_medians": numeric_medians,    # per-numeric column median used for imputation
+        "model": best_model,                   # ← actual fitted sklearn estimator
+        "encoders": encoders,                  # categorical label encoders
+        "numeric_medians": numeric_medians,    # imputation medians
         "feature_columns": feat_cols,
         "categorical_columns": cat_cols,
         "label_column": label_col,
         "version": ver
     }
-    joblib.dump(package, run_dir / "model.pkl")
+    print("Saving model package of type:", type(best_model))
+    # --- save directly to model.pkl + verify immediately ---
+    out_path = run_dir / "model.pkl"
+    joblib.dump(package, out_path)
+
+    # read back to prove it's a dict with a fitted estimator
+    loaded = joblib.load(out_path)
+    print("Saved+reloaded type:", type(loaded))
+    print("Inner model type:", type(loaded.get("model")))
+
 
     print(f"trained {len(results)} models, best={best_key} auc={best_auc:.3f}")
     return summary

@@ -1,0 +1,26 @@
+Processed file: data\processed\launches_processed_20251030_065945.feather
+Rows: 205
+
+Null counts:
+flight_number       0
+date_utc            0
+year                0
+is_weekend          0
+payload_mass_kg    39
+orbit               0
+launch_site         0
+booster_version     0
+reuse_count         0
+success            19
+
+Dtypes:
+flight_number        Int64
+date_utc            object
+year                 Int64
+is_weekend           Int64
+payload_mass_kg    float64
+orbit               object
+launch_site         object
+booster_version     object
+reuse_count          Int64
+success             object

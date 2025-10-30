@@ -1,0 +1,12 @@
+{
+  "champion_version": "v20251030-0333",
+  "previous_version": null,
+  "promoted_at": "2025-10-30 07:52:36Z",
+  "reason": "bootstrap (first model)",
+  "metrics_snapshot": {
+    "auc": 0.8648648648648649,
+    "ece": 0.02953286484274069,
+    "f1": 0.9866666666666667,
+    "logloss": 0.13263672236504487
+  }
+}

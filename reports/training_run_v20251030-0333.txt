@@ -1,0 +1,31 @@
+SpaceX MLOps � Training Run v20251030-0333
+============================================================
+
+Data
+  feature_file: data/features/launch_features_20251030_070453.parquet
+  rows: total=186  train=148  val=38
+  pos_rate: total=0.973  train=0.973  val=0.974
+
+Validation Metrics
+  logreg:
+    auc       : 0.8649
+    f1        : 0.9867
+    logloss   : 0.1326
+    ece       : 0.0295
+    precision : 0.9737
+    recall    : 1.0000
+
+  rf:
+    auc       : 0.4054
+    f1        : 0.9867
+    logloss   : 0.9598
+    ece       : 0.0342
+    precision : 0.9737
+    recall    : 1.0000
+
+Candidate model (winner): logreg
+Champion version after promotion: v20251030-0333
+
+Provenance
+  git_commit: 65d92cd
+  run_at_utc: 2025-10-30T07:56:39Z

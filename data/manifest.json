@@ -24,5 +24,22 @@
     "success": "Int64"
   },
   "sha256_feature": "66961cf844de57153685bab5e1206e4eb534ce404f5d5366753360ad3138ec82",
-  "sha256_raw": null
+  "sha256_raw": null,
+  "last_training_run": "2025-10-30T07:53:58Z",
+  "candidate_version": "v20251030-0333",
+  "champion_version": "v20251030-0333",
+  "metric_summary": {
+    "candidate": {
+      "auc": 0.8648648648648649,
+      "f1": 0.9866666666666667,
+      "logloss": 0.13263672236504487,
+      "ece": 0.02953286484274069
+    },
+    "champion": {
+      "auc": 0.8648648648648649,
+      "f1": 0.9866666666666667,
+      "logloss": 0.13263672236504487,
+      "ece": 0.02953286484274069
+    }
+  }
 }

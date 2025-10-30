@@ -1,0 +1,64 @@
+﻿name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write   # for OIDC
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+      EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create version label
+        id: ver
+        run: |
+          ts=$(date -u +'%Y%m%d-%H%M%S')
+          sha=$(git rev-parse --short HEAD)
+          echo "LABEL=v${ts}-${sha}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build source bundle for EB
+        run: |
+          mkdir -p bundle
+          # Include only what EB needs to build the Docker image on-instance
+          zip -r bundle/app.zip \
+            Dockerfile Procfile .ebextensions \
+            apps registry requirements.txt
+
+      - name: Upload bundle to S3
+        run: |
+          aws s3 cp bundle/app.zip s3://${{ env.S3_BUCKET }}/${{ steps.ver.outputs.LABEL }}.zip
+
+      - name: Create EB application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "${{ env.EB_APP_NAME }}" \
+            --version-label "${{ steps.ver.outputs.LABEL }}" \
+            --source-bundle S3Bucket="${{ env.S3_BUCKET }}",S3Key="${{ steps.ver.outputs.LABEL }}.zip"
+
+      - name: Deploy to EB environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "${{ env.EB_ENV_NAME }}" \
+            --version-label "${{ steps.ver.outputs.LABEL }}"
+
+      - name: Wait for environment update to finish
+        run: |
+          aws elasticbeanstalk wait environment-updated --environment-names "${{ env.EB_ENV_NAME }}"

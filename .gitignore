@@ -1,0 +1,11 @@
+@"
+.venv/
+__pycache__/
+*.pyc
+logs/*
+reports/*
+data/raw/*
+data/processed/*
+data/features/*
+.env
+"@ | Set-Content -NoNewline .gitignore

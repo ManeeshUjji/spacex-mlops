@@ -1,11 +1,26 @@
-@"
 .venv/
 __pycache__/
 *.pyc
-logs/*
+
+# logs and local artifacts
+logs/
+
+# data layers
+data/raw/
+data/processed/
+data/features/
+
+# local model build outputs (raw)
+models/
+
+# Registry is tracked EXCEPT the heavy model.pkl
+#   – we want JSONs (metrics, config, pointers) in Git
+registry/models/*/model.pkl
+
+# reports: ignore by default, but keep human-readable run logs & optional plots
 reports/*
-data/raw/*
-data/processed/*
-data/features/*
+!reports/*.txt
+!reports/*.png
+
+# env files
 .env
-"@ | Set-Content -NoNewline .gitignore

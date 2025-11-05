@@ -52,27 +52,10 @@ jobs:
             --version-label "${{ steps.version.outputs.LABEL }}" \
             --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${{ steps.version.outputs.LABEL }}.zip"
 
-      - name: Ensure environment exists (create if missing)
+            - name: Skip environment creation if it exists
         run: |
-          set -e
-          if ! aws elasticbeanstalk describe-environments \
-               --application-name "$EB_APP_NAME" \
-               --environment-names "$EB_ENV_NAME" \
-               --query 'Environments[?Status==`Ready` || Status==`Launching` || Status==`Updating`].EnvironmentName' \
-               --output text | grep -q "$EB_ENV_NAME"; then
-            PLATFORM_ARN=$(aws elasticbeanstalk list-available-solution-stacks \
-              --query 'SolutionStacks[?contains(@, `Docker`) && contains(@, `Amazon Linux 2023`)] | [0]' \
-              --output text)
-            aws elasticbeanstalk create-environment \
-              --application-name "$EB_APP_NAME" \
-              --environment-name "$EB_ENV_NAME" \
-              --solution-stack-name "$PLATFORM_ARN" \
-              --version-label "${{ steps.version.outputs.LABEL }}" \
-              --option-settings Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=Port,Value=8080 \
-                                Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=HealthCheckPath,Value=/health \
-                                Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
-                                Namespace=aws:elasticbeanstalk:hostmanager,OptionName=LogPublicationControl,Value=true
-          fi
+          echo "Environment already exists — skipping creation."
+
 
       - name: Update environment to new version
         run: aws elasticbeanstalk update-environment --environment-name "$EB_ENV_NAME" --version-label "${{ steps.version.outputs.LABEL }}"

@@ -1,0 +1,86 @@
+name: Deploy to Elastic Beanstalk (Docker/AL2023)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  AWS_ROLE_NAME: ${{ secrets.AWS_ROLE_NAME }}
+  EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+  EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_NAME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Generate version label
+        id: version
+        run: echo "LABEL=$(date +'%Y%m%d-%H%M%S')-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Create source bundle
+        run: zip -r app.zip . -x ".git/*" ".github/*" "**/__pycache__/*"
+
+      - name: Upload bundle to S3
+        run: aws s3 cp app.zip s3://${S3_BUCKET}/${{ steps.version.outputs.LABEL }}.zip
+
+      - name: Ensure Elastic Beanstalk application exists
+        run: |
+          aws elasticbeanstalk describe-applications --application-names "$EB_APP_NAME" >/dev/null 2>&1 \
+          || aws elasticbeanstalk create-application --application-name "$EB_APP_NAME"
+
+      - name: Create EB application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APP_NAME" \
+            --version-label "${{ steps.version.outputs.LABEL }}" \
+            --source-bundle S3Bucket="${S3_BUCKET}",S3Key="${{ steps.version.outputs.LABEL }}.zip"
+
+      - name: Ensure environment exists (create if missing)
+        run: |
+          set -e
+          if ! aws elasticbeanstalk describe-environments \
+               --application-name "$EB_APP_NAME" \
+               --environment-names "$EB_ENV_NAME" \
+               --query 'Environments[?Status==`Ready` || Status==`Launching` || Status==`Updating`].EnvironmentName' \
+               --output text | grep -q "$EB_ENV_NAME"; then
+            PLATFORM_ARN=$(aws elasticbeanstalk list-available-solution-stacks \
+              --query 'SolutionStacks[?contains(@, `Docker`) && contains(@, `Amazon Linux 2023`)] | [0]' \
+              --output text)
+            aws elasticbeanstalk create-environment \
+              --application-name "$EB_APP_NAME" \
+              --environment-name "$EB_ENV_NAME" \
+              --solution-stack-name "$PLATFORM_ARN" \
+              --version-label "${{ steps.version.outputs.LABEL }}" \
+              --option-settings Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=Port,Value=8080 \
+                                Namespace=aws:elasticbeanstalk:environment:process:default,OptionName=HealthCheckPath,Value=/health \
+                                Namespace=aws:elasticbeanstalk:cloudwatch:logs,OptionName=StreamLogs,Value=true \
+                                Namespace=aws:elasticbeanstalk:hostmanager,OptionName=LogPublicationControl,Value=true
+          fi
+
+      - name: Update environment to new version
+        run: aws elasticbeanstalk update-environment --environment-name "$EB_ENV_NAME" --version-label "${{ steps.version.outputs.LABEL }}"
+
+      - name: Show environment URL
+        run: |
+          URL=$(aws elasticbeanstalk describe-environments \
+            --application-name "$EB_APP_NAME" \
+            --environment-names "$EB_ENV_NAME" \
+            --query 'Environments[0].CNAME' --output text)
+          echo "Environment URL: http://$URL"

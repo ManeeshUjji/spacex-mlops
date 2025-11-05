@@ -1,0 +1,10 @@
+﻿**/__pycache__/
+**/*.py[cod]
+*.log
+.venv/
+.env
+.git/
+.gitignore
+.ipynb_checkpoints/
+dist/
+build/

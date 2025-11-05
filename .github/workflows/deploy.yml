@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_REGION: us-east-2
   EB_APP: spacex-mlops
@@ -22,7 +26,11 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::780817326680:role/spacex-mlops-github-oidc
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: us-east-2
+          role-session-name: gh-${{ github.run_id }}
+
+      - name: Who am I
+        run: aws sts get-caller-identity
 
       - name: Version label
         id: ver

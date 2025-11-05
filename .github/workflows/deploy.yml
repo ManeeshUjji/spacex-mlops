@@ -1,34 +1,34 @@
-name: deploy
+name: Deploy to Elastic Beanstalk (Docker)
+
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
 
-permissions:
-  id-token: write
-  contents: read
+env:
+  AWS_REGION: us-east-2
+  EB_APP: spacex-mlops
+  EB_ENV: spacex-mlops-780817326680-Ohio-env
+  S3_BUCKET: spacex-mlops-eb-artifacts-780817326680-us-east-2
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: us-east-2
-      EB_APP: spacex-mlops
-      EB_ENV: spacex-mlops-780817326680-Ohio-env
-      S3_BUCKET: spacex-mlops-deploy-${{ github.repository_owner }}-${{ github.run_id }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS creds via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::780817326680:role/spacex-mlops-github-oidc
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Generate version label
+      - name: Version label
         id: ver
         run: |
-          echo "label=${GITHUB_SHA::7}-$(date +%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
+          TS=$(date -u +"%Y%m%dT%H%M%SZ")
+          echo "label=${GITHUB_SHA::7}-${TS}" >> $GITHUB_OUTPUT
 
       - name: Sanity check required files
         run: |
@@ -40,56 +40,36 @@ jobs:
           test -d .ebextensions
           echo "OK"
 
-      - name: Create source bundle (zip only the app + configs)
+      - name: Ensure artifact bucket
+        shell: bash
+        run: |
+          if ! aws s3api head-bucket --bucket "${S3_BUCKET}" 2>/dev/null; then
+            aws s3 mb "s3://${S3_BUCKET}" --region "${AWS_REGION}"
+          fi
+
+      - name: Create source bundle (root = app)
         run: |
           mkdir -p bundle
           zip -r "bundle/source.zip" \
             Dockerfile requirements.txt \
             apps registry .ebextensions \
             -x "**/__pycache__/*" "**/*.pyc" ".venv/*" ".git/*" ".github/*"
-
           echo "Bundle contents:"
           unzip -l bundle/source.zip
 
-      - name: Create temporary S3 bucket (idempotent)
-        run: |
-          aws s3 mb s3://${{ env.S3_BUCKET }} || true
-
       - name: Upload bundle to S3
         run: |
-          aws s3 cp bundle/source.zip s3://${{ env.S3_BUCKET }}/source-${{ steps.ver.outputs.label }}.zip
+          aws s3 cp bundle/source.zip "s3://${S3_BUCKET}/source-${{ steps.ver.outputs.label }}.zip"
 
-      - name: Ensure EB application exists
-        run: |
-          aws elasticbeanstalk describe-applications --application-names "${{ env.EB_APP }}" \
-          || aws elasticbeanstalk create-application --application-name "${{ env.EB_APP }}"
-
-      - name: Create EB application version
+      - name: Create EB app version
         run: |
           aws elasticbeanstalk create-application-version \
             --application-name "${{ env.EB_APP }}" \
             --version-label "${{ steps.ver.outputs.label }}" \
             --source-bundle S3Bucket="${{ env.S3_BUCKET }}",S3Key="source-${{ steps.ver.outputs.label }}.zip"
 
-      - name: Create environment if missing (ignore error if exists)
-        run: |
-          aws elasticbeanstalk describe-environments --application-name "${{ env.EB_APP }}" \
-            --environment-names "${{ env.EB_ENV }}" \
-            --no-include-deleted | jq -e '.Environments | length==1' >/dev/null \
-          || aws elasticbeanstalk create-environment \
-               --application-name "${{ env.EB_APP }}" \
-               --environment-name "${{ env.EB_ENV }}" \
-               --solution-stack-name "64bit Amazon Linux 2023 v4.7.3 running Docker" \
-               --version-label "${{ steps.ver.outputs.label }}"
-
       - name: Update environment to new version
         run: |
           aws elasticbeanstalk update-environment \
             --environment-name "${{ env.EB_ENV }}" \
             --version-label "${{ steps.ver.outputs.label }}"
-
-      - name: Show environment URL
-        run: |
-          aws elasticbeanstalk describe-environments \
-            --environment-names "${{ env.EB_ENV }}" \
-            --query "Environments[0].CNAME" --output text
